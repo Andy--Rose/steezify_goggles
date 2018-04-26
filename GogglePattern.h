@@ -10,23 +10,23 @@ enum Patterns { RAINBOW_CYCLE, COLOR_WIPE, THEATER_CHASE, LOOPY, CIRCLE_FADE, CL
 #define FADE_INTERVAL_MILIS 50
 #define CLAP_INTERVAL_MILIS 50
 
-class GogglePattern : public Adafruit_NeoPixel
+class GogglePattern
 {
   public:
     // Constructor - calls base-class constructor to initialize strip
-    GogglePattern(uint16_t pixels, uint8_t pin, uint8_t type, void (*callback)())
-    :Adafruit_NeoPixel(pixels, pin, type)
+    GogglePattern(uint16_t pixels, CRGB* ledAlloc, void (*callback)())
     {
       OnComplete = callback;
       TotalSteps = pixels;
       TotalLeds = pixels;
+      leds = ledAlloc;
     }
 
     void Init(Themes theme, int brightness = 255){
       Serial.println("INIT");
       ActivePattern = GetNextPattern(RAINBOW_CYCLE);
       ActiveBrightness = brightness;
-      setBrightness(ActiveBrightness);
+      FastLED.setBrightness(ActiveBrightness);
       colored_time = millis();
       InitTheme(theme);
       lastUpdate = millis() - Interval - 500;
@@ -90,7 +90,8 @@ class GogglePattern : public Adafruit_NeoPixel
     void TestRainbow() {
       Serial.println("Testing Rainbow");
       ActivePattern = RAINBOW_CYCLE;
-      RainbowCycle();
+      ColorSet(Wheel(120));
+//      RainbowCycle();
     }
 
    private:
@@ -99,10 +100,13 @@ class GogglePattern : public Adafruit_NeoPixel
     Patterns ActivePattern;
     Themes ActiveTheme;
     Directions Direction;
+
+    CRGB *leds;
+    
     int ActiveColor;
     int ActiveBrightness;
-    int TotalSteps = numPixels();        // total number of steps in the pattern
-    int TotalLeds = numPixels();
+    int TotalSteps = 0;        // total number of steps in the pattern
+    int TotalLeds = 0;
     uint16_t CircleFadeSize = 6;    // Size of the fade trail
     uint16_t ChaseSectionSize = 3;  // Size of the chase section
 
@@ -195,6 +199,22 @@ class GogglePattern : public Adafruit_NeoPixel
     }
 
     //***************COLOR METHODS***************//
+    // Convert separate R,G,B into packed 32-bit RGB color.
+    // Packed format is always RGB, regardless of LED strand color order.
+    uint32_t Color(uint8_t r, uint8_t g, uint8_t b) {
+      return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
+    }
+    
+    // Convert separate R,G,B,W into packed 32-bit WRGB color.
+    // Packed format is always WRGB, regardless of LED strand color order.
+    uint32_t Color(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
+      return ((uint32_t)w << 24) | ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
+    }
+    
+    void SetPixel(int pixel, int color) {
+      leds[pixel].setRGB(Red(color), Green(color), Blue(color));
+    }
+    
     // Return color, dimmed by 75% (used by scanner)
     int DimColor(int color){
       int dimColor = Color(Red(color) >> 1, Green(color) >> 1, Blue(color) >> 1);
@@ -260,10 +280,10 @@ class GogglePattern : public Adafruit_NeoPixel
 
     // Set all pixels to a color (synchronously)
     void ColorSet(uint32_t color) {
-      for (int i = 0; i < numPixels(); i++) {
-        setPixelColor(i, color);
+      for (int i = 0; i < TotalLeds; i++) {
+        SetPixel(i, color);
       }
-      show();
+      FastLED.show();
     }
 
     uint32_t GetNextColorFromCollection() {
@@ -338,7 +358,7 @@ class GogglePattern : public Adafruit_NeoPixel
       Direction = FORWARD;
       if((this_time - changed_time) > (PatternInterval * 1000)) {
         changed_time = millis();
-        show();
+        FastLED.show();
         ActivePattern = GetNextPattern(ActivePattern);
         if (ActivePattern == RAINBOW_CYCLE) {
           RainbowCycle();
@@ -409,16 +429,10 @@ class GogglePattern : public Adafruit_NeoPixel
 
     // Update the Rainbow Cycle Pattern
     void RainbowCycleUpdate(){
-      int interval = 255 / TotalLeds;
       for(int i=0; i<TotalLeds; i++){
-        setPixelColor(i, Wheel(i * interval));
-//        int root = ((i * 256 / TotalLeds) + Index);
-//        int rootrem = root & 255;
-//        int rcol = Wheel(rootrem);
-////        Serial.println("rcol: " + (String)rcol);
-//        setPixelColor(i, rcol);
+        SetPixel(i, Wheel(((i * 256 / TotalLeds) + Index) & 255));
       }
-      show();
+      FastLED.show();
     }
     
     // Initialize for a ColorWipe
@@ -436,8 +450,8 @@ class GogglePattern : public Adafruit_NeoPixel
 
     // Update the Color Wipe Pattern
     void ColorWipeUpdate(){
-      setPixelColor(Index, WipeColor);
-      show();
+      SetPixel(Index, WipeColor);
+      FastLED.show();
       if (Index + 1 == TotalSteps){
         if (WipeColor == Color1){
           WipeColor = Color2;
@@ -464,12 +478,12 @@ class GogglePattern : public Adafruit_NeoPixel
     void LoopyUpdate()
     {
         for(int i=0; i < TotalSteps; i++){
-          setPixelColor(i, Color(0,0,0));
+          SetPixel(i, Color(0,0,0));
         }
 
         // Set the pixel
-        setPixelColor(Index, Color1);
-        show();
+        SetPixel(Index, Color1);
+        FastLED.show();
         Increment();
     }
 
@@ -488,15 +502,15 @@ class GogglePattern : public Adafruit_NeoPixel
 
     // Update the Theater Chase Pattern
     void TheaterChaseUpdate(){
-      for(int i=0; i< numPixels(); i++){
+      for(int i=0; i<TotalLeds; i++){
         if ((i + Index) % ChaseSectionSize == 0){
-          setPixelColor(i, Color2);
+          SetPixel(i, Color2);
         }
         else{
-          setPixelColor(i, Color1);
+          SetPixel(i, Color1);
         }
       }
-      show();
+      FastLED.show();
     }
 
     // Initialize for a Circle Fade
@@ -520,7 +534,7 @@ class GogglePattern : public Adafruit_NeoPixel
         int start = (Index + (TotalSteps / 2)) % TotalSteps;
         CircleFadeSet(start, Color2);
       }
-      show();
+      FastLED.show();
     }
 
     void CircleFadeSet(int start, uint32_t color){
@@ -531,11 +545,11 @@ class GogglePattern : public Adafruit_NeoPixel
         int brightness = 255 * ((float)i/((float)CircleFadeSize * 2));
         //Serial.println(percent);
         int colorDimmed = DimColorPercent(color, brightness);
-        setPixelColor(point, colorDimmed);
+        SetPixel(point, colorDimmed);
       }
       int point = start - CircleFadeSize;
       if (point < 0) { point = TotalSteps + point; }
-      setPixelColor(point, 0); 
+      SetPixel(point, 0); 
     }
 
     void Clap(uint32_t color1, uint32_t color2, uint16_t interval, uint16_t len){
@@ -551,7 +565,7 @@ class GogglePattern : public Adafruit_NeoPixel
 
     // Update the Theater Chase Pattern
     void ClapUpdate(){
-      show();
+      FastLED.show();
       if (Index >= (TotalSteps / 2)){
         //Serial.println("REVERSE");
         Reverse();
@@ -572,21 +586,21 @@ class GogglePattern : public Adafruit_NeoPixel
         point = Index + ChaseSectionSize;
       }
       ClapSet(point, 0, 0);
-      show();
+      FastLED.show();
     }
 
     void ClapSet(int point, int32_t colorOne, int32_t colorTwo){
       if (point >= 0){
         if (point <= TotalSteps / 2){
-          setPixelColor(point, colorOne);
+          SetPixel(point, colorOne);
           int oppositePoint = TotalSteps - point;
-          setPixelColor(oppositePoint, colorTwo);
+          SetPixel(oppositePoint, colorTwo);
         }
         else{
           if (colorOne == 0 && colorTwo == 0){
-            setPixelColor(point, colorOne);
+            SetPixel(point, colorOne);
             int oppositePoint = TotalSteps - point;
-            setPixelColor(oppositePoint, colorTwo);
+            SetPixel(oppositePoint, colorTwo);
           }
         }
       }

@@ -9,11 +9,15 @@
  * 
 */
 
-#include <Adafruit_NeoPixel.h>
+//#include <Adafruit_NeoPixel.h>
+#include <FastLED.h>
 #include "GogglePattern.h"
 
 #define PIN_LEDS 10
 #define LEDS 40
+#define BRIGHTNESS 64
+//#define COLOR_ORDER GRB
+
 //
 //int design[13][4] = {
 //  {0, 1, 2, 0},
@@ -31,7 +35,9 @@
 //  {0, 39, 40, 0}
 //};
 
-GogglePattern goggles = GogglePattern(LEDS, PIN_LEDS, NEO_RGB + NEO_KHZ800, &GogglesComplete);
+//GogglePattern goggles = GogglePattern(LEDS, PIN_LEDS, NEO_RGB + NEO_KHZ800, &GogglesComplete);
+CRGB leds[LEDS];
+GogglePattern goggles = GogglePattern(LEDS, leds, &GogglesComplete);
 
 const int buttonPin = 6;
 
@@ -40,8 +46,10 @@ void setup() {
   Serial.println("SETUP");
 //  pinMode(buttonPin, INPUT);
 //  digitalWrite(buttonPin, HIGH);
-  goggles.begin();
-  goggles.show();
+//  goggles.begin();
+  
+  FastLED.addLeds<NEOPIXEL, PIN_LEDS>(leds, LEDS);
+  FastLED.show();
   goggles.Init(NORMAL, 255);
 
   test();
@@ -49,7 +57,7 @@ void setup() {
 }
 
 void loop() {
-  goggles.Update();
+//  goggles.Update();
 }
 
 void test() {
