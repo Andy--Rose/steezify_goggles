@@ -67,7 +67,8 @@ void test() {
 
   // Test methods
 //  goggles.TestRainbow();
-  goggles.TestColorWipe();
+//  goggles.TestColorWipe();
+  goggles.TestTheaterChase();
   //  goggles.TestClap();
 }
 

@@ -3,7 +3,7 @@ enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 
 #define MIN_CHASE_SPEED 60
 #define MAX_CHASE_SPEED 30
-#define CHASE_INTERVAL_MILIS 500
+#define CHASE_SECTION_SIZE 3
 #define FADE_INTERVAL_MILIS 50
 #define CLAP_INTERVAL_MILIS 50
 #define COLOR_INTERVAL 40
@@ -33,10 +33,7 @@ class GogglePattern
       currentPalette = themePalette;
       lastUpdate = millis() - UpdateInterval - 500;
 
-      // set intervals based on BPM
-      RainbowInterval = ((BPM * 60) / TotalLeds) / 4;
-      WipeInterval = ((BPM * 60) / TotalLeds) / 4; //(4 beats)
-      
+      CalculateIntervals();
       Update();
     }
 
@@ -75,6 +72,7 @@ class GogglePattern
 
     void SetBPM(int tempo) {
       BPM = tempo;
+      CalculateIntervals();
     }
 
     //**************TEST METHODS****************//
@@ -94,10 +92,16 @@ class GogglePattern
       ColorWipe();
     }
 
+    void TestTheaterChase() {
+      Serial.println("Testing Theater Chase");
+      ActivePattern = "THEATER_CHASE";
+      TheaterChase();
+    }
+
     void TestClap() {
       Serial.println("Testing Clap");
       ActivePattern = "CLAP";
-      Clap(50, 3);
+      Clap(50);
     }
 
    private:
@@ -113,7 +117,6 @@ class GogglePattern
     int TotalSteps = 0;        // total number of steps in the pattern
     int TotalLeds = 0;
     uint16_t CircleFadeSize = 6;    // Size of the fade trail
-    uint16_t ChaseSectionSize = 3;  // Size of the chase section
 
     // FastLED settings
     CRGBPalette16 currentPalette;
@@ -140,10 +143,14 @@ class GogglePattern
     uint16_t Index = 0;
     int iColor = 0;     // Index for the current cycle color
 
+    // Pattern Intervals
+    // These are overridden when the BPM is changed
+    double RainbowInterval = 5;
+    double WipeInterval = 50;
+    double ChaseInterval = 50;
+
     // Timing
     int BPM = 128;
-    double RainbowInterval = 5; // default
-    double WipeInterval = 50;   // default
     int UpdateInterval = 5;     // milliseconds between updates
     int PatternInterval = 30; // Seconds before changing the pattern
     unsigned long lastUpdate;   // last update of position
@@ -189,14 +196,24 @@ class GogglePattern
       }
     }
 
+    // set intervals based on BPM
+    void CalculateIntervals() {
+      RainbowInterval = ((BPM * 60) / TotalLeds) / 4;
+      WipeInterval = ((BPM * 60) / TotalLeds) / 4; //(4 beats)
+      ChaseInterval = (BPM * 60) / TotalLeds;
+    }
+
     void GogglesComplete()
     {
       Serial.println("GogglesComplete");
-//      Serial.println(Patterns[1]);
-//      Serial.println(ActivePattern);
       if (ActivePattern == "COLOR_WIPE") {
         Reverse();
         NextColor();
+      } else if (ActivePattern == "THEATER_CHASE") {
+        NextColor();
+        Index = 0;
+      } else {
+        Index = 0;  // Start Over
       }
     }
 
@@ -330,9 +347,9 @@ class GogglePattern
         } else if (ActivePattern == "CIRCLE_FADE") {
           CircleFade(FADE_INTERVAL_MILIS, 8, true);
         } else if (ActivePattern == "CLAP") {
-          Clap(CLAP_INTERVAL_MILIS, 3);
+          Clap(CLAP_INTERVAL_MILIS);
         } else if (ActivePattern == "THEATER_CHASE") {
-          TheaterChase(CHASE_INTERVAL_MILIS, 3);
+          TheaterChase();
         } else if (ActivePattern == "LOOPY") {
           Loopy(WipeInterval);
         } else {
@@ -404,6 +421,7 @@ class GogglePattern
     // Initialize for a ColorWipe
     void ColorWipe(){
       Serial.println("Begin COLOR_WIPE");
+      currentPalette = themePalette;
       currentBlending = NOBLEND;
       UpdateInterval = WipeInterval;
       TotalSteps = TotalLeds;
@@ -414,6 +432,31 @@ class GogglePattern
     // Update the Color Wipe Pattern
     void ColorWipeUpdate(){
       leds[Index] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
+      FastLED.show();
+      Increment();
+    }
+
+    // Initialize for a Theater Chase
+    void TheaterChase(){
+      Serial.println("Begin THEATER_CHASE");
+      currentBlending = NOBLEND;
+      currentPalette = themePalette;
+      ActivePattern = "THEATER_CHASE";
+      UpdateInterval = ChaseInterval;
+      TotalSteps = TotalLeds;
+      Index = 0;
+    }
+
+    // Update the Theater Chase Pattern
+    void TheaterChaseUpdate(){
+      for(int i=0; i<TotalLeds; i++){
+        if ((i + Index) % CHASE_SECTION_SIZE == 0){
+          leds[i] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
+        }
+        else{
+          leds[i] = ColorFromPalette(currentPalette, iColor + COLOR_INTERVAL, ActiveBrightness, currentBlending);
+        }
+      }
       FastLED.show();
       Increment();
     }
@@ -440,30 +483,7 @@ class GogglePattern
         FastLED.show();
         Increment();
     }
-
-    // Initialize for a Theater Chase
-    void TheaterChase(uint8_t interval, uint16_t count){
-      Serial.println("Begin THEATER_CHASE");
-      ActivePattern = "THEATER_CHASE";
-      UpdateInterval = interval;
-      ChaseSectionSize = count;   // ChaseSectionSize here will be the length of Color1
-      TotalSteps = TotalLeds;
-      Index = 0;
-    }
-
-    // Update the Theater Chase Pattern
-    void TheaterChaseUpdate(){
-      for(int i=0; i<TotalLeds; i++){
-        if ((i + Index) % ChaseSectionSize == 0){
-          SetPixel(i);
-        }
-        else{
-          SetPixel(i);
-        }
-      }
-      FastLED.show();
-    }
-
+    
     // Initialize for a Circle Fade
     void CircleFade(uint16_t interval, uint16_t fadeLength, bool doubletone = false){
       Serial.println("Begin CIRCLE_FADE");
@@ -500,11 +520,10 @@ class GogglePattern
       SetPixel(point, 0); 
     }
 
-    void Clap(uint16_t interval, uint16_t len){
+    void Clap(uint16_t interval){
       Serial.println("Begin CLAP");
       ActivePattern = "CLAP";
       UpdateInterval = interval;
-      ChaseSectionSize = len;
       TotalSteps = TotalLeds;
       Index = 0;
     }
@@ -518,7 +537,7 @@ class GogglePattern
       }
 
       // Set the ON lights
-      for (int i=0; i < ChaseSectionSize; i++){
+      for (int i=0; i < CHASE_SECTION_SIZE; i++){
         int point = Index - i;
         if (!GoingForward){
           point = Index + i;
@@ -527,9 +546,9 @@ class GogglePattern
       }
 
       // Set the OFF lights
-      int point = Index - ChaseSectionSize;
+      int point = Index - CHASE_SECTION_SIZE;
       if (!GoingForward){
-        point = Index + ChaseSectionSize;
+        point = Index + CHASE_SECTION_SIZE;
       }
       ClapSet(point);
       FastLED.show();
