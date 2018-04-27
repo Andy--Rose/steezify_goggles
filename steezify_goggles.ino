@@ -37,7 +37,7 @@
 //};
 
 CRGB leds[LEDS];
-GogglePattern goggles = GogglePattern(LEDS, leds, &GogglesComplete);
+GogglePattern goggles = GogglePattern(LEDS, leds);
 
 const int buttonPin = 6;
 
@@ -62,12 +62,13 @@ void loop() {
 
 void test() {
   Serial.println("Entering test mode");
-//  Test Patterns
+  // Test Patterns
   goggles.LockPattern();
 
-//  Test Clap
-//  goggles.TestClap();
-  goggles.TestRainbow();
+  // Test methods
+//  goggles.TestRainbow();
+  goggles.TestColorWipe();
+  //  goggles.TestClap();
 }
 
 
@@ -81,13 +82,6 @@ void ButtonHandler() {
     delay(2000);
 //    Serial.println("Changed pattern to " + (String)goggles.PatternIndex + " which correlates to " + goggles.GetPattern());
 //    Serial.end();
-  }
-}
-
-void GogglesComplete()
-{
-  if (goggles.GetPattern() == COLOR_WIPE) {
-    goggles.Reverse();
   }
 }
 

@@ -1,25 +1,23 @@
-enum Directions { FORWARD, REVERSE };
+
 enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
-enum Patterns { RAINBOW_CYCLE, COLOR_WIPE, THEATER_CHASE, LOOPY, CIRCLE_FADE, CLAP };
 
 #define MIN_CHASE_SPEED 60
 #define MAX_CHASE_SPEED 30
 #define CHASE_INTERVAL_MILIS 500
-#define WIPE_INTERVAL_MILIS 50
-#define RAINBOW_INTERVAL_MILIS 50
 #define FADE_INTERVAL_MILIS 50
 #define CLAP_INTERVAL_MILIS 50
-#define COLOR_INTERVAL 3
+#define COLOR_INTERVAL 40
 
 const TProgmemPalette16 themePalette_p PROGMEM;
 
 class GogglePattern
 {
   public:
+    String Patterns[6] { "RAINBOW_CYCLE", "COLOR_WIPE", "THEATER_CHASE", "LOOPY", "CIRCLE_FADE", "CLAP" };
+    
     // Constructor - calls base-class constructor to initialize strip
-    GogglePattern(uint16_t pixels, CRGB* ledAlloc, void (*callback)())
+    GogglePattern(uint16_t pixels, CRGB* ledAlloc)
     {
-      OnComplete = callback;
       TotalSteps = pixels;
       TotalLeds = pixels;
       leds = ledAlloc;
@@ -27,7 +25,7 @@ class GogglePattern
 
     void Init(Themes theme, int brightness = 255){
       Serial.println("INIT");
-      ActivePattern = GetNextPattern(RAINBOW_CYCLE);
+      ActivePattern = GetNextPattern("RAINBOW_CYCLE");
       ActiveBrightness = brightness;
       FastLED.setBrightness(ActiveBrightness);
       colored_time = millis();
@@ -36,7 +34,8 @@ class GogglePattern
       lastUpdate = millis() - UpdateInterval - 500;
 
       // set intervals based on BPM
-      RainbowInterval = (BPM / 60) * TotalLeds;
+      RainbowInterval = ((BPM * 60) / TotalLeds) / 4;
+      WipeInterval = ((BPM * 60) / TotalLeds) / 4; //(4 beats)
       
       Update();
     }
@@ -46,37 +45,28 @@ class GogglePattern
       if (!PatternLocked) { ChangePattern(); }
       if((millis() - lastUpdate) > UpdateInterval){ // time to update
         lastUpdate = millis();
-        if (ActivePattern == RAINBOW_CYCLE) {
+        if (ActivePattern == "RAINBOW_CYCLE") {
           RainbowCycleUpdate();
-        } else if (ActivePattern == COLOR_WIPE) {
+        } else if (ActivePattern == "COLOR_WIPE") {
           ColorWipeUpdate();
-        } else if (ActivePattern == CIRCLE_FADE) {
+        } else if (ActivePattern == "CIRCLE_FADE") {
           CircleFadeUpdate();
-        } else if (ActivePattern == CLAP) {
+        } else if (ActivePattern == "CLAP") {
           ClapUpdate();
-        } else if (ActivePattern == THEATER_CHASE) {
+        } else if (ActivePattern == "THEATER_CHASE") {
           TheaterChaseUpdate();
-        } else if (ActivePattern == LOOPY) {
+        } else if (ActivePattern == "LOOPY") {
           LoopyUpdate();
         } else {
           // do nothing
         }
-        Increment();
       }
-    }
-    
-    Patterns GetPattern() {
-      return ActivePattern;
     }
     
     // Reverse direction of the pattern
     void Reverse(){
-      if (Direction == FORWARD){
-        Direction = REVERSE;
-      }
-      else{
-        Direction = FORWARD;
-      }
+      Serial.println("Reversing");
+      GoingForward = !GoingForward;
     }
 
     void NextPattern() {
@@ -92,25 +82,29 @@ class GogglePattern
       PatternLocked = true;
     }
 
-    void TestClap() {
-      Serial.println("Testing Clap");
-      ActivePattern = CLAP;
-      Clap(50, 3);
-    }
-
     void TestRainbow() {
       Serial.println("Testing Rainbow");
-      ActivePattern = RAINBOW_CYCLE;
-//      ColorSet(Wheel(120));
+      ActivePattern = "RAINBOW_CYCLE";
       RainbowCycle();
+    }
+
+    void TestColorWipe() {
+      Serial.println("Testing Colorwipe");
+      ActivePattern = "COLOR_WIPE";
+      ColorWipe();
+    }
+
+    void TestClap() {
+      Serial.println("Testing Clap");
+      ActivePattern = "CLAP";
+      Clap(50, 3);
     }
 
    private:
    //***************VARIABLES***************//
     // Settings
-    Patterns ActivePattern;
+    String ActivePattern;
     Themes ActiveTheme;
-    Directions Direction;
 
     CRGB *leds;
     
@@ -129,6 +123,7 @@ class GogglePattern
     // Bool rules
     bool PatternLocked = false;
     bool circleFadeDouble = false;
+    bool GoingForward = true;
 
     // Active Patterns
     bool TheaterChaseEnabled = true;
@@ -147,7 +142,8 @@ class GogglePattern
 
     // Timing
     int BPM = 128;
-    int RainbowInterval = 5; // default
+    double RainbowInterval = 5; // default
+    double WipeInterval = 50;   // default
     int UpdateInterval = 5;     // milliseconds between updates
     int PatternInterval = 30; // Seconds before changing the pattern
     unsigned long lastUpdate;   // last update of position
@@ -177,23 +173,30 @@ class GogglePattern
 
     // Increment the Index and reset at the end
     void Increment(){
-      if (Direction == FORWARD){
-        Index++;
-        if (Index > TotalSteps){
-          Index = 0;
-          if (OnComplete != NULL){
-            OnComplete(); // call the comlpetion callback
-          }
+      Serial.println("Increment: " + (String) Index); 
+      if (GoingForward){
+        Index += 1;
+        if (Index == TotalSteps){
+          Index = TotalSteps - 1;
+          GogglesComplete(); // call the comlpetion callback
         }
       }
-      else{ // Direction == REVERSE
-        --Index;
-        if (Index < 0){
-          Index = TotalSteps-1;
-          if (OnComplete != NULL){
-            OnComplete(); // call the comlpetion callback
-          }
+      else { // reverse
+        Index -= 1;
+        if (Index == 0){
+          GogglesComplete(); // call the comlpetion callback
         }
+      }
+    }
+
+    void GogglesComplete()
+    {
+      Serial.println("GogglesComplete");
+//      Serial.println(Patterns[1]);
+//      Serial.println(ActivePattern);
+      if (ActivePattern == "COLOR_WIPE") {
+        Reverse();
+        NextColor();
       }
     }
 
@@ -216,6 +219,10 @@ class GogglePattern
     
     void SetPixel(int pixel) {
       leds[pixel] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
+    }
+
+    void NextColor() {
+      iColor += COLOR_INTERVAL;
     }
 
     int DimColorPercent(int color, double brightness){
@@ -311,43 +318,41 @@ class GogglePattern
     void ChangePattern() {
       currentPalette = themePalette;
       this_time = millis();
-      Direction = FORWARD;
+      GoingForward = true;
       if((this_time - changed_time) > (PatternInterval * 1000)) {
         changed_time = millis();
         FastLED.show();
         ActivePattern = GetNextPattern(ActivePattern);
-        if (ActivePattern == RAINBOW_CYCLE) {
+        if (ActivePattern == "RAINBOW_CYCLE") {
           RainbowCycle();
-        } else if (ActivePattern == COLOR_WIPE) {
-          ColorWipe(WIPE_INTERVAL_MILIS);
-        } else if (ActivePattern == CIRCLE_FADE) {
+        } else if (ActivePattern == "COLOR_WIPE") {
+          ColorWipe();
+        } else if (ActivePattern == "CIRCLE_FADE") {
           CircleFade(FADE_INTERVAL_MILIS, 8, true);
-        } else if (ActivePattern == CLAP) {
+        } else if (ActivePattern == "CLAP") {
           Clap(CLAP_INTERVAL_MILIS, 3);
-        } else if (ActivePattern == THEATER_CHASE) {
+        } else if (ActivePattern == "THEATER_CHASE") {
           TheaterChase(CHASE_INTERVAL_MILIS, 3);
-        } else if (ActivePattern == LOOPY) {
-          Loopy(WIPE_INTERVAL_MILIS, FORWARD);
+        } else if (ActivePattern == "LOOPY") {
+          Loopy(WipeInterval);
         } else {
           // do nothing
         }
       }
     }
 
-    Patterns GetNextPattern(Patterns pattern) {
-      Patterns nextPattern = RAINBOW_CYCLE;
-      if (pattern == RAINBOW_CYCLE) {
-        nextPattern = COLOR_WIPE;
-      } else if (pattern == COLOR_WIPE) {
-        nextPattern =  CIRCLE_FADE;
-      } else if (pattern == CIRCLE_FADE) {
-        nextPattern =  CLAP;
-      } else if (pattern == CLAP) {
-        nextPattern =  THEATER_CHASE;
-      } else if (pattern == THEATER_CHASE) {
-        nextPattern =  LOOPY;
-      } else {
-        nextPattern =  RAINBOW_CYCLE;
+    String GetNextPattern(String pattern) {
+      String nextPattern = "RAINBOW_CYCLE";
+      if (pattern == "RAINBOW_CYCLE") {
+        nextPattern = "COLOR_WIPE";
+      } else if (pattern == "COLOR_WIPE") {
+        nextPattern =  "CIRCLE_FADE";
+      } else if (pattern == "CIRCLE_FADE") {
+        nextPattern = "CLAP";
+      } else if (pattern == "CLAP") {
+        nextPattern = "THEATER_CHASE";
+      } else if (pattern == "THEATER_CHASE") {
+        nextPattern = "LOOPY";
       }
 
       if (IsEnabledPattern(nextPattern)){
@@ -357,18 +362,18 @@ class GogglePattern
       }
     }
 
-    bool IsEnabledPattern(Patterns pattern) {
-      if (pattern == RAINBOW_CYCLE) {
+    bool IsEnabledPattern(String pattern) {
+      if (pattern == "RAINBOW_CYCLE") {
         return RainbowCycleEnabled;
-      } else if (pattern == COLOR_WIPE) {
+      } else if (pattern == "COLOR_WIPE") {
         return ColorWipeEnabled;
-      } else if (pattern == CIRCLE_FADE) {
+      } else if (pattern == "CIRCLE_FADE") {
         return CircleFadeEnabled;
-      } else if (pattern == CLAP) {
+      } else if (pattern == "CLAP") {
         return ClapEnabled;
-      } else if (pattern == THEATER_CHASE) {
+      } else if (pattern == "THEATER_CHASE") {
         return TheaterChaseEnabled;
-      } else if (pattern == LOOPY) {
+      } else if (pattern == "LOOPY") {
         return LoopyEnabled;
       } else { 
         return true;
@@ -388,49 +393,39 @@ class GogglePattern
     // Update the Rainbow Cycle Pattern
     void RainbowCycleUpdate(){
       static int rainbowIndex = 1;
-      static int rainbowInterval = 255 / TotalLeds;
+      static int rainbowColorInterval = 255 / TotalLeds;
       for(int i=0; i<TotalLeds; i++){
-//        SetPixel(i, Wheel(((i * 256 / TotalLeds) + Index) & 255));
-//          SetPixel(i);
         leds[i] = ColorFromPalette(currentPalette, rainbowIndex, ActiveBrightness, currentBlending);
-        rainbowIndex += rainbowInterval;
+        rainbowIndex += rainbowColorInterval;
       }
       FastLED.show();
     }
     
     // Initialize for a ColorWipe
-    void ColorWipe(uint8_t interval, Directions dir = FORWARD){
+    void ColorWipe(){
       Serial.println("Begin COLOR_WIPE");
-      ActivePattern = COLOR_WIPE;
-      UpdateInterval = interval;
+      currentBlending = NOBLEND;
+      UpdateInterval = WipeInterval;
       TotalSteps = TotalLeds;
       Index = 0;
-      Direction = dir;
+      iColor = 0;
     }
 
     // Update the Color Wipe Pattern
     void ColorWipeUpdate(){
-      SetPixel(Index);
+      leds[Index] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
       FastLED.show();
-//      if (Index + 1 == TotalSteps){
-//        if (WipeColor == Color1){
-//          WipeColor = Color2;
-//        }
-//        else{
-//          WipeColor = Color1;
-//        }
-//      }
+      Increment();
     }
 
     // Initialize for a ColorWipe
-    void Loopy(uint32_t interval, Directions dir = FORWARD)
+    void Loopy(uint32_t interval)
     {
       Serial.println("Begin LOOPY");
-      ActivePattern = LOOPY;
+      ActivePattern = "LOOPY";
       UpdateInterval = interval;
       TotalSteps = TotalLeds;
       Index = 0;
-      Direction = dir;
     }
 
     // Update the Loopy Pattern
@@ -447,14 +442,13 @@ class GogglePattern
     }
 
     // Initialize for a Theater Chase
-    void TheaterChase(uint8_t interval, uint16_t count, Directions dir = FORWARD){
+    void TheaterChase(uint8_t interval, uint16_t count){
       Serial.println("Begin THEATER_CHASE");
-      ActivePattern = THEATER_CHASE;
+      ActivePattern = "THEATER_CHASE";
       UpdateInterval = interval;
       ChaseSectionSize = count;   // ChaseSectionSize here will be the length of Color1
       TotalSteps = TotalLeds;
       Index = 0;
-      Direction = dir;
     }
 
     // Update the Theater Chase Pattern
@@ -471,15 +465,14 @@ class GogglePattern
     }
 
     // Initialize for a Circle Fade
-    void CircleFade(uint16_t interval, uint16_t fadeLength, bool doubletone = false, Directions dir = FORWARD){
+    void CircleFade(uint16_t interval, uint16_t fadeLength, bool doubletone = false){
       Serial.println("Begin CIRCLE_FADE");
-      ActivePattern = CIRCLE_FADE;
+      ActivePattern = "CIRCLE_FADE";
       CircleFadeSize = fadeLength;
       UpdateInterval = interval;
       circleFadeDouble = doubletone;
       TotalSteps = TotalLeds + 1;
       Index = 0;
-      Direction = dir;
     }
 
     // Update the Theater Chase Pattern
@@ -509,7 +502,7 @@ class GogglePattern
 
     void Clap(uint16_t interval, uint16_t len){
       Serial.println("Begin CLAP");
-      ActivePattern = CLAP;
+      ActivePattern = "CLAP";
       UpdateInterval = interval;
       ChaseSectionSize = len;
       TotalSteps = TotalLeds;
@@ -527,7 +520,7 @@ class GogglePattern
       // Set the ON lights
       for (int i=0; i < ChaseSectionSize; i++){
         int point = Index - i;
-        if (Direction == REVERSE){
+        if (!GoingForward){
           point = Index + i;
         }
         ClapSet(point);
@@ -535,7 +528,7 @@ class GogglePattern
 
       // Set the OFF lights
       int point = Index - ChaseSectionSize;
-      if (Direction == REVERSE){
+      if (!GoingForward){
         point = Index + ChaseSectionSize;
       }
       ClapSet(point);
