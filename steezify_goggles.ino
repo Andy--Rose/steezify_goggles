@@ -7,6 +7,8 @@
  *   Board - Trinket 5V/16Hz (USB)
  *   Programmer - USBTinyISP
  * 
+ * Links:
+ * https://github.com/FastLED/FastLED/wiki/Pixel-reference
 */
 
 //#include <Adafruit_NeoPixel.h>
@@ -16,7 +18,6 @@
 #define PIN_LEDS 10
 #define LEDS 40
 #define BRIGHTNESS 64
-//#define COLOR_ORDER GRB
 
 //
 //int design[13][4] = {
@@ -35,7 +36,6 @@
 //  {0, 39, 40, 0}
 //};
 
-//GogglePattern goggles = GogglePattern(LEDS, PIN_LEDS, NEO_RGB + NEO_KHZ800, &GogglesComplete);
 CRGB leds[LEDS];
 GogglePattern goggles = GogglePattern(LEDS, leds, &GogglesComplete);
 
@@ -57,7 +57,7 @@ void setup() {
 }
 
 void loop() {
-//  goggles.Update();
+  goggles.Update();
 }
 
 void test() {
@@ -68,9 +68,6 @@ void test() {
 //  Test Clap
 //  goggles.TestClap();
   goggles.TestRainbow();
-
-//  Testing CircleFade pattern
-//  goggles.CircleFade(strand.Color(255, 0, 0), strand.Color(0,255,0), 50, 8, true);
 }
 
 
