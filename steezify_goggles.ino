@@ -92,6 +92,11 @@ void remoteCommand() {
     goggles.LockPattern();
     goggles.SetTheaterChase();
   }
+  else if (results.value == 4 || results.value == 0x804) {
+    Serial.println("Loopy");
+    goggles.LockPattern();
+    goggles.SetLoopy();
+  }
 
 //    case 0xFF30CF: Serial.println(" 4");    break;
 //    case 0xFF18E7: Serial.println(" 5");    break;
@@ -113,12 +118,13 @@ void remoteCommand() {
 void test() {
   Serial.println("Entering test mode");
   // Test Patterns
-  goggles.LockPattern();
+//  goggles.LockPattern();
 
   // Test methods
 //  goggles.SetRainbow();
 //  goggles.SetColorWipe();
-  goggles.SetTheaterChase();
+//  goggles.SetTheaterChase();
+//  goggles.SetLoopy();
   //  goggles.SetClap();
 }
 

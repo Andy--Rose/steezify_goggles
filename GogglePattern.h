@@ -7,6 +7,7 @@ enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 #define FADE_INTERVAL_MILIS 50
 #define CLAP_INTERVAL_MILIS 50
 #define COLOR_INTERVAL 40
+#define LAG_OFFSET 2
 
 const TProgmemPalette16 themePalette_p PROGMEM;
 
@@ -85,25 +86,31 @@ class GogglePattern
     }
 
     void SetRainbow() {
-      Serial.println("Testing Rainbow");
+      Serial.println("Set Rainbow");
       ActivePattern = "RAINBOW_CYCLE";
       RainbowCycle();
     }
 
     void SetColorWipe() {
-      Serial.println("Testing Colorwipe");
+      Serial.println("Set Colorwipe");
       ActivePattern = "COLOR_WIPE";
       ColorWipe();
     }
 
     void SetTheaterChase() {
-      Serial.println("Testing Theater Chase");
+      Serial.println("Set Theater Chase");
       ActivePattern = "THEATER_CHASE";
       TheaterChase();
     }
 
+    void SetLoopy() {
+      Serial.println("Set Loopy");
+      ActivePattern = "LOOPY";
+      Loopy();
+    }
+
     void SetClap() {
-      Serial.println("Testing Clap");
+      Serial.println("Set Clap");
       ActivePattern = "CLAP";
       Clap(50);
     }
@@ -152,6 +159,7 @@ class GogglePattern
     double RainbowInterval = 5;
     double WipeInterval = 50;
     double ChaseInterval = 50;
+    double LoopyInterval = 50;
 
     // Timing
     int BPM = 128;
@@ -202,9 +210,10 @@ class GogglePattern
 
     // set intervals based on BPM
     void CalculateIntervals() {
-      RainbowInterval = ((BPM * 60) / TotalLeds) / 4;
-      WipeInterval = ((BPM * 60) / TotalLeds) / 4; //(4 beats)
-      ChaseInterval = (BPM * 60) / TotalLeds;
+      RainbowInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET;
+      WipeInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET; //(4 beats)
+      ChaseInterval = ((BPM * 60) / TotalLeds) - LAG_OFFSET;
+      LoopyInterval = (((BPM * 60) / TotalLeds) / 4) - LAG_OFFSET;
     }
 
     void GogglesComplete()
@@ -214,6 +223,9 @@ class GogglePattern
         Reverse();
         NextColor();
       } else if (ActivePattern == "THEATER_CHASE") {
+        NextColor();
+        Index = 0;
+      } else if (ActivePattern == "LOOPY") {
         NextColor();
         Index = 0;
       } else {
@@ -337,7 +349,6 @@ class GogglePattern
 
     //***************PATTERN UTILITY METHODS***************//
     void ChangePattern() {
-      currentPalette = themePalette;
       this_time = millis();
       GoingForward = true;
       if((this_time - changed_time) > (PatternInterval * 1000)) {
@@ -355,7 +366,7 @@ class GogglePattern
         } else if (ActivePattern == "THEATER_CHASE") {
           TheaterChase();
         } else if (ActivePattern == "LOOPY") {
-          Loopy(WipeInterval);
+          Loopy();
         } else {
           // do nothing
         }
@@ -466,11 +477,11 @@ class GogglePattern
     }
 
     // Initialize for a ColorWipe
-    void Loopy(uint32_t interval)
+    void Loopy()
     {
       Serial.println("Begin LOOPY");
       ActivePattern = "LOOPY";
-      UpdateInterval = interval;
+      UpdateInterval = LoopyInterval;
       TotalSteps = TotalLeds;
       Index = 0;
     }
@@ -484,6 +495,7 @@ class GogglePattern
 
         // Set the pixel
         SetPixel(Index);
+        SetPixel(TotalLeds - Index);
         FastLED.show();
         Increment();
     }
