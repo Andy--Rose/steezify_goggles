@@ -3,11 +3,7 @@ enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 
 #define COLUMNS 13
 #define ROWS 4
-#define MIN_CHASE_SPEED 60
-#define MAX_CHASE_SPEED 30
 #define CHASE_SECTION_SIZE 3
-#define FADE_INTERVAL_MILIS 50
-#define CLAP_INTERVAL_MILIS 50
 #define COLOR_INTERVAL 40
 #define LAG_OFFSET 2
 
@@ -65,12 +61,6 @@ class GogglePattern
       }
     }
     
-    // Reverse direction of the pattern
-    void Reverse(){
-      Serial.println("Reversing");
-      GoingForward = !GoingForward;
-    }
-
     void NextPattern() {
       ChangePattern();
     }
@@ -197,24 +187,9 @@ class GogglePattern
     
  
     //***************UTILITY METHODS***************//
-    // Returns the Red component of a 32-bit color
-    uint8_t Red(int color){
-      return (color >> 16) & 0xFF;
-    }
-
-    // Returns the Green component of a 32-bit color
-    uint8_t Green(int color){
-      return (color >> 8) & 0xFF;
-    }
-
-    // Returns the Blue component of a 32-bit color
-    uint8_t Blue(int color){
-      return color & 0xFF;
-    }
-
     // Increment the Index and reset at the end
     void Increment(){
-//      Serial.println("Increment: " + (String) Index); 
+      Serial.println("Increment: " + (String) Index); 
       if (GoingForward){
         Index += 1;
         if (Index == TotalSteps){
@@ -223,6 +198,7 @@ class GogglePattern
         }
       }
       else { // reverse
+        Serial.println(Index);
         Index -= 1;
         if (Index == 0){
           GogglesComplete(); // call the comlpetion callback
@@ -230,21 +206,10 @@ class GogglePattern
       }
     }
 
-    // set intervals based on BPM
-    void CalculateIntervals() {
-      RainbowInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET;
-      WipeInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET; //(4 beats)
-      ChaseInterval = ((BPM * 60) / TotalLeds) - LAG_OFFSET;
-      LoopyInterval = (((BPM * 60) / TotalLeds) / 4) - LAG_OFFSET;
-      WaveInterval = (((BPM * 60) / TotalLeds) / 16)  - LAG_OFFSET; //(4 beats)
-      ClapInterval = (((BPM * 60) / (COLUMNS/2)) / 16) - LAG_OFFSET; // (1 beat)
-    }
-
     void GogglesComplete()
     {
       if (iRotation+1 < TotalRotations){
            iRotation++;
-           Index = 0;
       } else {
         iRotation = 0;
         Serial.println("GogglesComplete");
@@ -263,19 +228,23 @@ class GogglePattern
       }
     }
 
-    //***************COLOR METHODS***************//
-    // Convert separate R,G,B into packed 32-bit RGB color.
-    // Packed format is always RGB, regardless of LED strand color order.
-    uint32_t Color(uint8_t r, uint8_t g, uint8_t b) {
-      return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
-    }
-    
-    // Convert separate R,G,B,W into packed 32-bit WRGB color.
-    // Packed format is always WRGB, regardless of LED strand color order.
-    uint32_t Color(uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-      return ((uint32_t)w << 24) | ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b;
+    // Reverse direction of the pattern
+    void Reverse(){
+      Serial.println("Reversing");
+      GoingForward = !GoingForward;
     }
 
+    // set intervals based on BPM
+    void CalculateIntervals() {
+      RainbowInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET;
+      WipeInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET; //(4 beats)
+      ChaseInterval = ((BPM * 60) / TotalLeds) - LAG_OFFSET;
+      LoopyInterval = (((BPM * 60) / TotalLeds) / 4) - LAG_OFFSET;
+      WaveInterval = (((BPM * 60) / TotalLeds) / 16)  - LAG_OFFSET; //(4 beats)
+      ClapInterval = (((BPM * 60) / (COLUMNS/2)) / 16) - LAG_OFFSET; // (1 beat)
+    }
+
+    //***************COLOR METHODS***************//
     void SetPixel(int pixel) {
       leds[pixel] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
     }
@@ -286,30 +255,6 @@ class GogglePattern
     
     void NextColor() {
       iColor += COLOR_INTERVAL;
-    }
-
-    int FlipColor(int color){
-      if (color != 0){
-        return 255 - color;
-      }
-      return color;
-    }
-
-    // Input a value 0 to 255 to get a color value.
-    // The colors are a transition r - g - b - back to r.
-    int Wheel(int WheelPos){
-      WheelPos = 255 - WheelPos;
-      if(WheelPos < 85){
-        return Color(255 - WheelPos * 3, 0, WheelPos * 3);
-      }
-      else if(WheelPos < 170){
-        WheelPos -= 85;
-        return Color(0, WheelPos * 3, 255 - WheelPos * 3);
-      }
-      else{
-        WheelPos -= 170;
-        return Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-      }
     }
 
     //***************THEME UTILITY METHODS***************//
@@ -363,7 +308,6 @@ class GogglePattern
     //***************PATTERN UTILITY METHODS***************//
     void ChangePattern() {
       this_time = millis();
-      GoingForward = true;
       if((this_time - changed_time) > (PatternInterval * 1000)) {
         changed_time = millis();
         FastLED.show();
@@ -456,12 +400,11 @@ class GogglePattern
       TotalRotations = 1;
       TotalSteps = TotalLeds;
       Index = 0;
-      iColor = 0;
     }
 
     // Update the Color Wipe Pattern
     void ColorWipeUpdate(){
-      leds[Index] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
+      SetPixel(Index);
       FastLED.show();
       Increment();
     }
@@ -531,7 +474,7 @@ class GogglePattern
     void WaveUpdate()
     {
         for (int i=0; i < TotalSteps; i++) {
-          SetPixel(i, Color(0,0,0));
+          SetPixel(i, 0);
         }
 
         SetPixel(Index);

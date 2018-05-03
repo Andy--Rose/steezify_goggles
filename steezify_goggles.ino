@@ -91,7 +91,7 @@ void test() {
 //  goggles.SetRainbow();
 //  goggles.SetColorWipe();
 //  goggles.SetTheaterChase();
-//  goggles.SetLoopy();
+  goggles.SetLoopy();
 //  goggles.SetWave();
 //    goggles.SetClap();
 }
