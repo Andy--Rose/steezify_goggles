@@ -97,34 +97,19 @@ void remoteCommand() {
     goggles.LockPattern();
     goggles.SetLoopy();
   }
-
-//    case 0xFF30CF: Serial.println(" 4");    break;
-//    case 0xFF18E7: Serial.println(" 5");    break;
-//    case 0xFF7A85: Serial.println(" 6");    break;
-//    case 0xFF10EF: Serial.println(" 7");    break;
-//    case 0xFF38C7: Serial.println(" 8");    break;
-//    case 0xFF5AA5: Serial.println(" 9");    break;
-//    case 0xFF42BD: Serial.println(" *");    break;
-//    case 0xFF4AB5: Serial.println(" 0");    break;
-//    case 0xFF52AD: Serial.println(" #");    break;
-//    case 0xFFFFFFFF: Serial.println(" REPEAT");break;  
-//  
-//    default: 
-//      Serial.println(" other button   ");
-//
-//  }
 }
 
 void test() {
   Serial.println("Entering test mode");
   // Test Patterns
-//  goggles.LockPattern();
+  goggles.LockPattern();
 
   // Test methods
 //  goggles.SetRainbow();
 //  goggles.SetColorWipe();
 //  goggles.SetTheaterChase();
 //  goggles.SetLoopy();
+  goggles.SetWave();
   //  goggles.SetClap();
 }
 
