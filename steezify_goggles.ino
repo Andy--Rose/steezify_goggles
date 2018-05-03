@@ -33,16 +33,12 @@ void setup() {
   Serial.println("SETUP");
 
   irrecv.enableIRIn(); // Start the receiver
-//  pinMode(buttonPin, INPUT);
-//  digitalWrite(buttonPin, HIGH);
-//  goggles.begin();
   
   FastLED.addLeds<NEOPIXEL, PIN_LEDS>(leds, LEDS);
   FastLED.show();
   goggles.Init(NORMAL, 255);
 
   test();
-//  attachInterrupt(digitalPinToInterrupt(buttonPin), ButtonHandler, CHANGE);
 }
 
 void loop() {
@@ -79,6 +75,16 @@ void remoteCommand() {
     Serial.println("Loopy");
     goggles.LockPattern();
     goggles.SetLoopy();
+  } 
+  else if (results.value == 5 || results.value == 0x805) {
+    Serial.println("Wave");
+    goggles.LockPattern();
+    goggles.SetWave();
+  }
+  else if (results.value == 6 || results.value == 0x806) {
+    Serial.println("Clap");
+    goggles.LockPattern();
+    goggles.SetClap();
   }
 }
 
