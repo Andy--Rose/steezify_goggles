@@ -14,8 +14,11 @@
 //#include <Adafruit_NeoPixel.h>
 #include <FastLED.h>
 #include "GogglePattern.h"
+#include <IRremote.h>
 
 #define PIN_LEDS 10
+#define PIN_REMOTE 6
+#define PIN_BUTTON 2
 #define LEDS 40
 #define BRIGHTNESS 64
 
@@ -39,11 +42,14 @@
 CRGB leds[LEDS];
 GogglePattern goggles = GogglePattern(LEDS, leds);
 
-const int buttonPin = 6;
+IRrecv irrecv(PIN_REMOTE);
+decode_results results;
 
 void setup() {
   Serial.begin(9600);
   Serial.println("SETUP");
+
+  irrecv.enableIRIn(); // Start the receiver
 //  pinMode(buttonPin, INPUT);
 //  digitalWrite(buttonPin, HIGH);
 //  goggles.begin();
@@ -57,7 +63,51 @@ void setup() {
 }
 
 void loop() {
+  if (irrecv.decode(&results))
+  {
+   Serial.println(results.value, HEX);
+   remoteCommand();
+   irrecv.resume(); // Receive the next value
+  }
   goggles.Update();
+}
+
+void remoteCommand() {
+  if (results.value == 0xD || results.value == 0x80D) {
+    Serial.println("Rotate Pattern");
+    goggles.UnlockPattern();
+  }
+  else if (results.value == 1 || results.value == 0x801) {
+    Serial.println("Rainbow");
+    goggles.LockPattern();
+    goggles.SetRainbow();
+  }
+  else if (results.value == 2 || results.value == 0x802) {
+    Serial.println("Color Wipe");
+    goggles.LockPattern();
+    goggles.SetColorWipe();
+  }
+  else if (results.value == 3 || results.value == 0x803) {
+    Serial.println("Theater Chase");
+    goggles.LockPattern();
+    goggles.SetTheaterChase();
+  }
+
+//    case 0xFF30CF: Serial.println(" 4");    break;
+//    case 0xFF18E7: Serial.println(" 5");    break;
+//    case 0xFF7A85: Serial.println(" 6");    break;
+//    case 0xFF10EF: Serial.println(" 7");    break;
+//    case 0xFF38C7: Serial.println(" 8");    break;
+//    case 0xFF5AA5: Serial.println(" 9");    break;
+//    case 0xFF42BD: Serial.println(" *");    break;
+//    case 0xFF4AB5: Serial.println(" 0");    break;
+//    case 0xFF52AD: Serial.println(" #");    break;
+//    case 0xFFFFFFFF: Serial.println(" REPEAT");break;  
+//  
+//    default: 
+//      Serial.println(" other button   ");
+//
+//  }
 }
 
 void test() {
@@ -66,15 +116,15 @@ void test() {
   goggles.LockPattern();
 
   // Test methods
-//  goggles.TestRainbow();
-//  goggles.TestColorWipe();
-  goggles.TestTheaterChase();
-  //  goggles.TestClap();
+//  goggles.SetRainbow();
+//  goggles.SetColorWipe();
+  goggles.SetTheaterChase();
+  //  goggles.SetClap();
 }
 
 
 void ButtonHandler() {
-  if (digitalRead(buttonPin) == HIGH) {
+  if (digitalRead(PIN_BUTTON) == HIGH) {
 //    Serial.begin(9600);
 //    Serial.println();
 //    Serial.println("Button Pressed");

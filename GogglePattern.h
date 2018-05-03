@@ -80,25 +80,29 @@ class GogglePattern
       PatternLocked = true;
     }
 
-    void TestRainbow() {
+    void UnlockPattern() {
+      PatternLocked = false;
+    }
+
+    void SetRainbow() {
       Serial.println("Testing Rainbow");
       ActivePattern = "RAINBOW_CYCLE";
       RainbowCycle();
     }
 
-    void TestColorWipe() {
+    void SetColorWipe() {
       Serial.println("Testing Colorwipe");
       ActivePattern = "COLOR_WIPE";
       ColorWipe();
     }
 
-    void TestTheaterChase() {
+    void SetTheaterChase() {
       Serial.println("Testing Theater Chase");
       ActivePattern = "THEATER_CHASE";
       TheaterChase();
     }
 
-    void TestClap() {
+    void SetClap() {
       Serial.println("Testing Clap");
       ActivePattern = "CLAP";
       Clap(50);
@@ -180,7 +184,7 @@ class GogglePattern
 
     // Increment the Index and reset at the end
     void Increment(){
-      Serial.println("Increment: " + (String) Index); 
+//      Serial.println("Increment: " + (String) Index); 
       if (GoingForward){
         Index += 1;
         if (Index == TotalSteps){
