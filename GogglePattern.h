@@ -1,6 +1,8 @@
 
 enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 
+#define COLUMNS 13
+#define ROWS 4
 #define MIN_CHASE_SPEED 60
 #define MAX_CHASE_SPEED 30
 #define CHASE_SECTION_SIZE 3
@@ -120,7 +122,7 @@ class GogglePattern
     void SetClap() {
       Serial.println("Set Clap");
       ActivePattern = "CLAP";
-      Clap(50);
+      Clap();
     }
 
    private:
@@ -166,6 +168,7 @@ class GogglePattern
     double ChaseInterval = 50;
     double LoopyInterval = 50;
     double WaveInterval = 50;
+    double ClapInterval = 50;
 
     // Timing
     int BPM = 128;
@@ -176,7 +179,22 @@ class GogglePattern
     unsigned long changed_time = this_time - (PatternInterval * 1000);  // Set to init right away
     unsigned long colored_time = this_time;
     
-    int *Design; // double-array for lighting design
+    int design[13][4] = {
+      {0, 1, 2, 0},
+      {0, 3, 4, 5},
+      {0, 6, 7, 8},
+      {9, 10, 11, 12},
+      {0, 13, 14, 15},
+      {0, 0, 16, 17},
+      {0, 18, 19, 20},
+      {21, 22, 23, 24},
+      {25, 26, 27, 28},
+      {29, 30, 31, 32},
+      {0, 33, 34, 35},
+      {0, 36, 37, 38},
+      {0, 39, 40, 0}
+    };
+    
  
     //***************UTILITY METHODS***************//
     // Returns the Red component of a 32-bit color
@@ -219,6 +237,7 @@ class GogglePattern
       ChaseInterval = ((BPM * 60) / TotalLeds) - LAG_OFFSET;
       LoopyInterval = (((BPM * 60) / TotalLeds) / 4) - LAG_OFFSET;
       WaveInterval = (((BPM * 60) / TotalLeds) / 16)  - LAG_OFFSET; //(4 beats)
+      ClapInterval = (((BPM * 60) / (COLUMNS/2)) / 16) - LAG_OFFSET; // (1 beat)
     }
 
     void GogglesComplete()
@@ -234,7 +253,8 @@ class GogglePattern
           NextColor();
         } else if (ActivePattern == "THEATER_CHASE"
           || ActivePattern == "LOOPY"
-          || ActivePattern == "WAVE") {
+          || ActivePattern == "WAVE"
+          || ActivePattern == "CLAP") {
           NextColor();
           Index = 0;
         } else {
@@ -355,7 +375,7 @@ class GogglePattern
         } else if (ActivePattern == "WAVE") {
           Wave();
         } else if (ActivePattern == "CLAP") {
-          Clap(CLAP_INTERVAL_MILIS);
+          Clap();
         } else if (ActivePattern == "THEATER_CHASE") {
           TheaterChase();
         } else if (ActivePattern == "LOOPY") {
@@ -538,53 +558,33 @@ class GogglePattern
         Increment();
     }
 
-    void Clap(uint16_t interval){
+    void Clap(){
       Serial.println("Begin CLAP");
       ActivePattern = "CLAP";
-      UpdateInterval = interval;
-      TotalSteps = TotalLeds;
+      UpdateInterval = ClapInterval;
+      TotalRotations = 2;
+      TotalSteps = COLUMNS / 2;
       Index = 0;
     }
 
     // Update the Theater Chase Pattern
     void ClapUpdate(){
+      if (Index == 0) {
+        for (int i=0; i<TotalLeds; i++) {
+          SetPixel(i,0);
+        }
+        FastLED.show();
+      }
+      for (int j=0; j<ROWS; j++) {
+        if (design[Index][j] != 0) {
+          SetPixel(design[Index][j]-1);
+        }
+        if (design[COLUMNS-Index][j] != 0) {
+          SetPixel(design[COLUMNS-Index-1][j]-1);
+        }
+      }
       FastLED.show();
-      if (Index >= (TotalSteps / 2)){
-        //Serial.println("REVERSE");
-        Reverse();
-      }
-
-      // Set the ON lights
-      for (int i=0; i < CHASE_SECTION_SIZE; i++){
-        int point = Index - i;
-        if (!GoingForward){
-          point = Index + i;
-        }
-        ClapSet(point);
-      }
-
-      // Set the OFF lights
-      int point = Index - CHASE_SECTION_SIZE;
-      if (!GoingForward){
-        point = Index + CHASE_SECTION_SIZE;
-      }
-      ClapSet(point);
-      FastLED.show();
-    }
-
-    void ClapSet(int point){
-      if (point >= 0){
-        if (point <= TotalSteps / 2){
-          SetPixel(point);
-          int oppositePoint = TotalSteps - point;
-          SetPixel(oppositePoint);
-        }
-        else{
-          SetPixel(point);
-          int oppositePoint = TotalSteps - point;
-          SetPixel(oppositePoint);
-        }
-      }
+      Increment();
     }
 };
 
