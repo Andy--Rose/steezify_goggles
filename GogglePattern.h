@@ -143,13 +143,7 @@ class GogglePattern
    private:
    //***************VARIABLES***************//
     // Settings
-    String Patterns[6] = { 
-      "LOOPY",
-      "RAINBOW_CYCLE",
-      "COLOR_WIPE",
-      "THEATER_CHASE",
-      "WAVE", "CLAP"
-    };
+    String Patterns[6] = { "LOOPY", "RAINBOW_CYCLE", "COLOR_WIPE", "THEATER_CHASE", "WAVE", "CLAP" };
 
     String ActivePattern;
     Themes ActiveTheme;
