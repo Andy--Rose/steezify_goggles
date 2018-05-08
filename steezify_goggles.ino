@@ -11,16 +11,13 @@
  * https://github.com/FastLED/FastLED/wiki/Pixel-reference
 */
 
-//#include <Adafruit_NeoPixel.h>
 #include <FastLED.h>
 #include "GogglePattern.h"
 #include <IRremote.h>
 
 #define PIN_LEDS 10
 #define PIN_REMOTE 6
-#define PIN_BUTTON 2
 #define LEDS 40
-#define BRIGHTNESS 64
 
 CRGB leds[LEDS];
 GogglePattern goggles = GogglePattern(LEDS, leds);
