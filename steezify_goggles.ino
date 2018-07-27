@@ -37,7 +37,7 @@ void setup() {
   FastLED.show();
   goggles.Init(NORMAL, 255);
 
-//  test();
+  test();
 }
 
 void loop() {
@@ -101,6 +101,11 @@ void remoteCommand() {
     goggles.LockPattern();
     goggles.SetClap();
   }
+  else if (results.value == 0x7 || results.value == 0x807) { // -7-
+    Serial.println("Party");
+    goggles.LockPattern();
+    goggles.SetParty();
+  }
 }
 
 void test() {
@@ -115,5 +120,6 @@ void test() {
 //  goggles.SetLoopy();
 //  goggles.SetWave();
 //    goggles.SetClap();
+//  goggles.SetParty();
 }
 
