@@ -1,3 +1,8 @@
+#include <boarddefs.h>
+#include <IRremote.h>
+#include <IRremoteInt.h>
+#include <ir_Lego_PF_BitStreamEncoder.h>
+
 enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 
 #define COLUMNS 13
@@ -5,7 +10,7 @@ enum Themes { NORMAL, HALLOWEEN, CHRISTMAS };
 #define CHASE_SECTION_SIZE 3
 #define COLOR_INTERVAL 40
 #define LAG_OFFSET 2
-#define PATTERN_COUNT 6
+#define PATTERN_COUNT 7
 
 #define WAVE_FADE_SIZE 10   // Size of the fade trailWaveEnabled
 
@@ -39,7 +44,7 @@ class GogglePattern
       lastUpdate = millis();
       delay(500);
 
-      Loopy();
+      SetColorWipe(); // Starting pattern
       
       Update();
     }
@@ -61,7 +66,9 @@ class GogglePattern
           TheaterChaseUpdate();
         } else if (ActivePattern == "LOOPY") {
           LoopyUpdate();
-        } else {
+        } else if (ActivePattern == "PARTY") {
+          PartyUpdate();
+        }else {
           // do nothing
         }
       }
@@ -140,10 +147,17 @@ class GogglePattern
       Clap();
     }
 
+    void SetParty() {
+      Serial.println("Set Party");
+      ActivePattern = "PARTY";
+      iPattern = 6;
+      Party();
+    }
+
    private:
    //***************VARIABLES***************//
     // Settings
-    String Patterns[6] = { "LOOPY", "RAINBOW_CYCLE", "COLOR_WIPE", "THEATER_CHASE", "WAVE", "CLAP" };
+    String Patterns[PATTERN_COUNT] = { "LOOPY", "RAINBOW_CYCLE", "COLOR_WIPE", "THEATER_CHASE", "WAVE", "CLAP", "PARTY" };
 
     String ActivePattern;
     Themes ActiveTheme;
@@ -172,6 +186,7 @@ class GogglePattern
     bool WaveEnabled = true;
     bool ClapEnabled = true;
     bool LoopyEnabled = true;
+    bool PartyEnabled = true;
 
     // Indices
     uint16_t Index = 0;
@@ -187,6 +202,7 @@ class GogglePattern
     double LoopyInterval = 50;
     double WaveInterval = 50;
     double ClapInterval = 50;
+    double PartyInterval = 50;
 
     // Timing
     int BPM = 128;
@@ -271,6 +287,7 @@ class GogglePattern
       LoopyInterval = (((BPM * 60) / TotalLeds) / 4) - LAG_OFFSET;
       WaveInterval = (((BPM * 60) / TotalLeds) / 4)  - LAG_OFFSET; //(4 beats)
       ClapInterval = (((BPM * 60) / (COLUMNS/2)) / 16) - LAG_OFFSET; // (1 beat)
+      PartyInterval = ((BPM * 60) / TotalLeds) - LAG_OFFSET;
     }
 
     //***************COLOR METHODS***************//
@@ -284,6 +301,10 @@ class GogglePattern
     
     void NextColor() {
       iColor += COLOR_INTERVAL;
+    }
+
+    void NextColor(int interval) {
+      iColor += interval;
     }
 
     //***************THEME UTILITY METHODS***************//
@@ -338,8 +359,9 @@ class GogglePattern
     void ChangePattern(bool force) {
       this_time = millis();
       if((this_time - changed_time) > (PatternInterval * 1000) || force) {
+        GoingForward = true;
+        currentPalette = themePalette;
         changed_time = millis();
-//        FastLED.show();
         SetNextPatternIndex();
         ActivePattern = Patterns[iPattern];
         Serial.println(ActivePattern);
@@ -355,8 +377,11 @@ class GogglePattern
           TheaterChase();
         } else if (ActivePattern == "LOOPY") {
           Loopy();
+        } else if (ActivePattern == "PARTY") {
+          Party();
         } else {
           ActivePattern = "LOOPY";
+          iPattern = 0;
           Loopy();
         }
       }
@@ -397,6 +422,8 @@ class GogglePattern
         return TheaterChaseEnabled;
       } else if (pattern == "LOOPY") {
         return LoopyEnabled;
+      } else if (pattern == "PARTY") {
+        return PartyEnabled;
       } else { 
         return true;
       }
@@ -460,7 +487,7 @@ class GogglePattern
           leds[i] = ColorFromPalette(currentPalette, iColor, ActiveBrightness, currentBlending);
         }
         else{
-          leds[i] = ColorFromPalette(currentPalette, iColor + COLOR_INTERVAL, ActiveBrightness, currentBlending);
+          leds[i] = ColorFromPalette(currentPalette, iColor + 40, ActiveBrightness, currentBlending);
         }
       }
       FastLED.show();
@@ -544,6 +571,26 @@ class GogglePattern
         if (design[COLUMNS-Index][j] != 0) {
           SetPixel(design[COLUMNS-Index-1][j]-1);
         }
+      }
+      FastLED.show();
+      Increment();
+    }
+
+    // Initialize for a Theater Chase
+    void Party(){
+      Serial.println("Begin PARTY");
+      currentPalette = RainbowColors_p;
+      UpdateInterval = PartyInterval;
+      TotalRotations = 1;
+      TotalSteps = 1;
+      Index = 0;
+    }
+
+    // Update the Theater Chase Pattern
+    void PartyUpdate(){
+      for(int i=0; i<TotalLeds; i++){
+        SetPixel(i);
+        NextColor(30);
       }
       FastLED.show();
       Increment();
